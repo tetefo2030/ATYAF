@@ -39,7 +39,7 @@ th { background-color: #0f172a; color: white; }
 <h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
 
 <div class="info-box">
-    📢 عند إدخال الموظف للبيانات، يتم حفظها سحابياً وتحديث اللوحة وإرسال تقرير فوري للمدير.
+📢 عند إدخال الموظف للبيانات، يتم حفظها سحابياً فوراً وتحديث اللوحة عند جميع من يفتح الرابط تلقائياً وبشكل فوري.
 </div>
 
 <div class="kpi-container">
@@ -60,9 +60,9 @@ th { background-color: #0f172a; color: white; }
 <div class="main-grid">
 <div class="panel">
 <h3>➕ تسجيل نسب إنجاز المشاريع والإدارات</h3>
-<form id="projectForm" action="https://formspree.io/f/xqejpawv" method="POST" class="form-group" onsubmit="return handleFormSubmit(event)">
-<input type="text" id="pProjectName" name="اسم المشروع" placeholder="اكتب اسم المشروع (مثال: منصة الجودة، نظام الفوترة)" required>
-<select id="pDeptName" name="الإدارة" required>
+<form id="projectForm" class="form-group" onsubmit="handleFormSubmit(event)">
+<input type="text" id="pProjectName" placeholder="اكتب اسم المشروع (مثال: منصة الجودة، نظام الفوترة)" required>
+<select id="pDeptName" required>
 <option value="" disabled selected>اختر الإدارة / القسم المالي للمشروع</option>
 <option value="الإدارة الطبية">الإدارة الطبية</option>
 <option value="الخدمات التمريضية">الخدمات التمريضية</option>
@@ -72,14 +72,14 @@ th { background-color: #0f172a; color: white; }
 <option value="الخدمات الطبية المساعدة">الخدمات الطبية المساعدة</option>
 <option value="العيادات الخارجية">العيادات الخارجية</option>
 </select>
-<select id="pMonth" name="الشهر">
+<select id="pMonth">
 <option value="يناير">يناير</option>
 <option value="فبراير">فبراير</option>
 <option value="مارس">مارس</option>
 </select>
-<input type="number" id="pTarget" name="النسبة المستهدفة" placeholder="النسبة المستهدفة (%)" min="0" max="100" required>
-<input type="number" id="pActual" name="النسبة الفعلية" placeholder="النسبة الفعلية المحققة (%)" min="0" max="100" required>
-<input type="text" id="pReason" name="الملاحظات" placeholder="أسباب التغير أو ملاحظات الأداء">
+<input type="number" id="pTarget" placeholder="النسبة المستهدفة (%)" min="0" max="100" required>
+<input type="number" id="pActual" placeholder="النسبة الفعلية المحققة (%)" min="0" max="100" required>
+<input type="text" id="pReason" placeholder="أسباب التغير أو ملاحظات الأداء">
 <button type="submit">إضافة وتحديث اللوحة وحفظ البيانات سحابياً</button>
 </form>
 </div>
@@ -117,153 +117,188 @@ th { background-color: #0f172a; color: white; }
 </div>
 </div>
 
-<script>
-const initialDepartments = ["الإدارة الطبية", "الخدمات التمريضية", "الموارد البشرية", "إدارة دورة الإيرادات", "الأمن والسلامة", "الخدمات الطبية المساعدة", "العيادات الخارجية"];
-let trackingRecords = JSON.parse(localStorage.getItem('myTrackingRecords')) || [];
-let timelineChart, departmentsChart;
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-window.onload = function() {
-    initCharts();
-    updateDashboard();
+// إعدادات Firebase الخاصة بنطاق وسيرفر مشروعكِ ATYAF بالكامل لمنع مشاكل الحظر
+const firebaseConfig = {
+apiKey: "AIzaSyBw-UX_Q3mS6qWpC9t2Y4n8k1X5vM0Z7aE",
+authDomain: "atyaf-9e35f.firebaseapp.com",
+databaseURL: "https://atyaf-9e35f-default-rtdb.firebaseio.com",
+projectId: "atyaf-9e35f",
+storageBucket: "atyaf-9e35f.appspot.com"
 };
 
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+const initialDepartments = ["الإدارة الطبية", "الخدمات التمريضية", "الموارد البشرية", "إدارة دورة الإيرادات", "الأمن والسلامة", "الخدمات الطبية المساعدة", "العيادات الخارجية"];
+let timelineChart, departmentsChart;
+
+// تهيئة الرسوم والربط السحابي التلقائي عند التحميل
+window.addEventListener('DOMContentLoaded', () => {
+initCharts();
+listenToFirebaseUpdates();
+});
+
 function initCharts() {
-    const ctxDep = document.getElementById('departmentsChart').getContext('2d');
-    departmentsChart = new Chart(ctxDep, {
-        type: 'bar',
-        data: {
-            labels: initialDepartments,
-            datasets: [{
-                data: new Array(initialDepartments.length).fill(0), 
-                backgroundColor: ['#00b4d8', '#ff4d6d', '#ffb703', '#9d4edd', '#52b788', '#f77f00', '#2196f3'],
-                borderRadius: 6
-            }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } } }
-    });
+const ctxDep = document.getElementById('departmentsChart').getContext('2d');
+departmentsChart = new Chart(ctxDep, {
+type: 'bar',
+data: {
+labels: initialDepartments,
+datasets: [{
+data: new Array(initialDepartments.length).fill(0),
+backgroundColor: ['#00b4d8', '#ff4d6d', '#ffb703', '#9d4edd', '#52b788', '#f77f00', '#2196f3'],
+borderRadius: 6
+}]
+},
+options: { responsive: true, plugins: { legend: { display: false } } }
+});
 
-    const ctxTime = document.getElementById('timelineChart').getContext('2d');
-    timelineChart = new Chart(ctxTime, {
-        type: 'line',
-        data: {
-            labels: ['يناير', 'فبراير', 'مارس'],
-            datasets: [
-                { label: 'متوسط المستهدف العام (%)', data: [0, 0, 0], borderColor: '#94a3b8', fill: false },
-                { label: 'متوسط الإنجاز الفعلي (%)', data: [0, 0, 0], borderColor: '#2563eb', fill: false }
-            ]
-        },
-        options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
-    });
+const ctxTime = document.getElementById('timelineChart').getContext('2d');
+timelineChart = new Chart(ctxTime, {
+type: 'line',
+data: {
+labels: ['يناير', 'فبراير', 'مارس'],
+datasets: [
+{ label: 'متوسط المستهدف العام (%)', data: [0, 0, 0], borderColor: '#94a3b8', fill: false },
+{ label: 'متوسط الإنجاز الفعلي (%)', data: [0, 0, 0], borderColor: '#2563eb', fill: false }
+]
+},
+options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
+});
 }
 
-function updateDashboard() {
-    localStorage.setItem('myTrackingRecords', JSON.stringify(trackingRecords));
+// دالة الاستماع ومراقبة السحاب الفورية للتحديث الفوري للجميع
+function listenToFirebaseUpdates() {
+const recordsRef = ref(database, 'trackingRecords');
+onValue(recordsRef, (snapshot) => {
+const data = snapshot.val();
+let recordsArray = [];
 
-    const tbody = document.getElementById('tableBody');
-    tbody.innerHTML = "";
-    let advanced = 0, delayed = 0;
-
-    let monthlyData = {"يناير": { targetSum: 0, actualSum: 0, count: 0 },"فبراير": { targetSum: 0, actualSum: 0, count: 0 },"مارس": { targetSum: 0, actualSum: 0, count: 0 }};
-    let deptCounts = {};
-    initialDepartments.forEach(d => deptCounts[d] = 0);
-
-    let uniqueProjectsInDept = new Set();
-
-    trackingRecords.forEach((rec, index) => {
-        const variance = rec.actual - rec.target;
-        let statusText = "", badgeClass = "", varColor = "";
-
-        if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; varColor = "#16a34a"; advanced++; } 
-        else if (variance < 0) { statusText = "تأخر ⚠️"; badgeClass = "delayed"; varColor = "#dc2626"; delayed++; } 
-        else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; varColor = "#4b5563"; }
-
-        tbody.innerHTML += `
-        <tr>
-        <td><strong>${rec.projectName}</strong></td>
-        <td><span style="color:#2563eb; font-weight:600;">${rec.deptName}</span></td>
-        <td><span style="font-weight:600; color:#475569;">${rec.month}</span></td>
-        <td>${rec.target}%</td>
-        <td>${rec.actual}%</td>
-        <td style="color: ${varColor}; font-weight: bold;">${variance > 0 ? '+' : ''}${variance}%</td>
-        <td><span class="badge ${badgeClass}">${statusText}</span></td>
-        <td>${rec.reason}</td>
-        <td><button class="delete-btn" onclick="deleteRecord(${index})">حذف</button></td>
-        </tr>
-        `;
-
-        if (monthlyData[rec.month]) {
-            monthlyData[rec.month].targetSum += parseInt(rec.target);
-            monthlyData[rec.month].actualSum += parseInt(rec.actual);
-            monthlyData[rec.month].count++;
-        }
-
-        const projectKey = `${rec.deptName.trim()}_${rec.projectName.trim()}`;
-        if (!uniqueProjectsInDept.has(projectKey)) {
-            uniqueProjectsInDept.add(projectKey);
-            if (deptCounts[rec.deptName] !== undefined) { 
-                deptCounts[rec.deptName]++; 
-            }
-        }
-    });
-
-    document.getElementById('totalRecords').innerText = trackingRecords.length;
-    document.getElementById('advancedCount').innerText = advanced;
-    document.getElementById('delayedCount').innerText = delayed; // تم إصلاح الخطأ البرمجي هنا
-
-    let targetsForChart = [], actualsForChart = [];
-    ['يناير', 'فبراير', 'مارس'].forEach(m => {
-        if (monthlyData[m].count > 0) {
-            targetsForChart.push(Math.round(monthlyData[m].targetSum / monthlyData[m].count));
-            actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count));
-        } else { targetsForChart.push(null); actualsForChart.push(null); }
-    });
-    timelineChart.data.datasets[0].data = targetsForChart;
-    timelineChart.data.datasets[1].data = actualsForChart;
-    timelineChart.update();
-
-    departmentsChart.data.datasets[0].data = Object.values(deptCounts);
-    departmentsChart.update();
+if (data) {
+Object.keys(data).forEach(key => {
+recordsArray.push({ firebaseId: key, ...data[key] });
+});
+}
+updateDashboard(recordsArray);
+});
 }
 
-function handleFormSubmit(event) {
-    event.preventDefault();
-    
-    const projectName = document.getElementById('pProjectName').value.trim();
-    const deptName = document.getElementById('pDeptName').value;
-    const month = document.getElementById('pMonth').value;
-    const target = parseInt(document.getElementById('pTarget').value);
-    const actual = parseInt(document.getElementById('pActual').value);
-    const reason = document.getElementById('pReason').value || "لا توجد ملاحظات.";
+function updateDashboard(records) {
+const tbody = document.getElementById('tableBody');
+tbody.innerHTML = "";
+let advanced = 0, delayed = 0;
 
-    // 1. تحديث البيانات محلياً في اللوحة فوراً لتظهر أمام الموظف
-    trackingRecords.push({ projectName, deptName, month, target, actual, reason });
-    updateDashboard();
+let monthlyData = {"يناير": { targetSum: 0, actualSum: 0, count: 0 },"فبراير": { targetSum: 0, actualSum: 0, count: 0 },"مارس": { targetSum: 0, actualSum: 0, count: 0 }};
+let deptCounts = {};
+initialDepartments.forEach(d => deptCounts[d] = 0);
 
-    // 2. إرسال البيانات سحابياً لقاعدة البيانات المربوطة بإيميل المدير
-    const form = event.target;
-    fetch(form.action, {
-        method: form.method,
-        body: new FormData(form),
-        headers: { 'Accept': 'application/json' }
-    }).then(response => {
-        if (response.ok) {
-            alert("🟢 تم حفظ البيانات سحابياً وتحديث لوحة المدير بنجاح!");
-            form.reset();
-        } else {
-            alert("⚠️ تم تحديث اللوحة محلياً، ولكن حدث خطأ أثناء الحفظ السحابي.");
-        }
-    }).catch(error => {
-        alert("⚠️ عذراً، تأكد من الاتصال بالإنترنت لحفظ البيانات سحابياً.");
-    });
+let uniqueProjectsInDept = new Set();
 
-    return false;
+records.forEach((rec) => {
+const variance = rec.actual - rec.target;
+let statusText = "", badgeClass = "", varColor = "";
+
+if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; varColor = "#16a34a"; advanced++; }
+else if (variance < 0) { statusText = "تأخر ⚠️"; badgeClass = "delayed"; varColor = "#dc2626"; delayed++; }
+else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; varColor = "#4b5563"; }
+
+const tr = document.createElement('tr');
+tr.innerHTML = `
+<td><strong>${rec.projectName}</strong></td>
+<td><span style="color:#2563eb; font-weight:600;">${rec.deptName}</span></td>
+<td><span style="font-weight:600; color:#475569;">${rec.month}</span></td>
+<td>${rec.target}%</td>
+<td>${rec.actual}%</td>
+<td style="color: ${varColor}; font-weight: bold;">${variance > 0 ? '+' : ''}${variance}%</td>
+<td><span class="badge ${badgeClass}">${statusText}</span></td>
+<td>${rec.reason}</td>
+<td></td>
+`;
+
+// بناء زر الحذف السحابي المباشر
+const deleteBtn = document.createElement('button');
+deleteBtn.className = 'delete-btn';
+deleteBtn.innerText = 'حذف';
+deleteBtn.addEventListener('click', () => deleteRecord(rec.firebaseId));
+tr.querySelector('td:last-child').appendChild(deleteBtn);
+tbody.appendChild(tr);
+
+if (monthlyData[rec.month]) {
+monthlyData[rec.month].targetSum += parseInt(rec.target);
+monthlyData[rec.month].actualSum += parseInt(rec.actual);
+monthlyData[rec.month].count++;
 }
 
-function deleteRecord(index) {
-    if (confirm("هل تريد حذف هذا السجل محلياً؟")) {
-        trackingRecords.splice(index, 1);
-        updateDashboard();
-    }
+const projectKey = `${rec.deptName.trim()}_${rec.projectName.trim()}`;
+if (!uniqueProjectsInDept.has(projectKey)) {
+uniqueProjectsInDept.add(projectKey);
+if (deptCounts[rec.deptName] !== undefined) {
+deptCounts[rec.deptName]++;
+}
+}
+});
+
+document.getElementById('totalRecords').innerText = records.length;
+document.getElementById('advancedCount').innerText = advanced;
+document.getElementById('delayedCount').innerText = delayed;
+
+let targetsForChart = [], actualsForChart = [];
+['يناير', 'فبراير', 'مارس'].forEach(m => {
+if (monthlyData[m].count > 0) {
+targetsForChart.push(Math.round(monthlyData[m].targetSum / monthlyData[m].count));
+actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count));
+} else { targetsForChart.push(null); actualsForChart.push(null); }
+});
+timelineChart.data.datasets[0].data = targetsForChart;
+timelineChart.data.datasets[1].data = actualsForChart;
+timelineChart.update();
+
+departmentsChart.data.datasets[0].data = Object.values(deptCounts);
+departmentsChart.update();
+}
+
+// تصدير دالة الإرسال لتصبح متاحة على مستوى الصفحة والنموذج
+window.handleFormSubmit = function(event) {
+event.preventDefault();
+
+const projectName = document.getElementById('pProjectName').value.trim();
+const deptName = document.getElementById('pDeptName').value;
+const month = document.getElementById('pMonth').value;
+const target = parseInt(document.getElementById('pTarget').value);
+const actual = parseInt(document.getElementById('pActual').value);
+const reason = document.getElementById('pReason').value || "لا توجد ملاحظات.";
+
+const newRecord = { projectName, deptName, month, target, actual, reason, timestamp: new Date().toISOString() };
+
+const recordsRef = ref(database, 'trackingRecords');
+push(recordsRef, newRecord)
+.then(() => {
+alert("🟢 تم الحفظ سحابياً وتحديث اللوحة عند الجميع فوراً! 🎉");
+document.getElementById('projectForm').reset();
+})
+.catch(error => {
+alert("⚠️ فشل الحفظ السحابي: " + error.message);
+});
+
+return false;
+}
+
+// دالة الحذف السحابي المباشر عند الجميع
+function deleteRecord(firebaseId) {
+if (confirm("هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً من السحاب؟")) {
+const itemRef = ref(database, 'trackingRecords/' + firebaseId);
+remove(itemRef)
+.then(() => {
+alert("🗑️ تم حذف السجل بنجاح من قاعدة البيانات السحابية!");
+})
+.catch(error => {
+alert("⚠️ حدث خطأ أثناء الحذف: " + error.message);
+});
+}
 }
 </script>
 </body>
