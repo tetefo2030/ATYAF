@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة تتبع المشاريع - إدارة التخطيط والتحول</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
+.container { max-width: 1300px; margin: 0 auto; }
+h1 { text-align: center; color: #0f172a; margin-bottom: 25px; font-size: 24px; }
+.kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px; }
+.kpi-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-top: 5px solid #64748b; }
+.kpi-card.advanced { border-top-color: #10b981; }
+.kpi-card.delayed { border-top-color: #ef4444; }
+.kpi-value { font-size: 28px; font-weight: bold; margin-top: 5px; }
+.main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
+@media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+.panel { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+.form-group { display: flex; flex-direction: column; gap: 12px; }
+input, select, button { padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; font-family: inherit; }
+button { background-color: #2563eb; color: white; border: none; cursor: pointer; font-weight: bold; transition: background 0.2s; }
+button:hover { background-color: #1d4ed8; }
+.info-box { background: #e0f2fe; padding: 15px; border-radius: 8px; color: #0369a1; font-weight: bold; text-align: center; margin-bottom: 20px; border: 1px solid #bae6fd; }
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
+th, td { padding: 14px; text-align: right; border-bottom: 1px solid #f1f5f9; }
+th { background-color: #0f172a; color: white; }
+.badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+.badge.advanced { background: #dcfce7; color: #15803d; }
+.badge.delayed { background: #fee2e2; color: #b91c1c; }
+.badge.ontrack { background: #fef9c3; color: #a16207; }
+.delete-btn { background: #ef4444; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer;}
+.delete-btn:hover { background: #dc2626; }
+</style>
+</head>
+<body>
+
+<div class="container">
+<h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
+
+<div class="info-box">
+    📢 عند إدخال الموظف للبيانات، يتم حفظها سحابياً وتحديث اللوحة وإرسال تقرير فوري للمدير.
+</div>
+
+<div class="kpi-container">
+<div class="kpi-card">
+<div>إجمالي السجلات المضافة</div>
+<div class="kpi-value" id="totalRecords">0</div>
+</div>
+<div class="kpi-card advanced">
+<div style="color: #15803d;">مشاريع متقدمة</div>
+<div class="kpi-value" id="advancedCount" style="color: #15803d;">0</div>
+</div>
+<div class="kpi-card delayed">
+<div style="color: #b91c1c;">مشاريع متأخرة</div>
+<div class="kpi-value" id="delayedCount" style="color: #b91c1c;">0</div>
+</div>
+</div>
+
+<div class="main-grid">
+<div class="panel">
+<h3>➕ تسجيل نسب إنجاز المشاريع والإدارات</h3>
+<form id="projectForm" action="https://formspree.io/f/xqejpawv" method="POST" class="form-group" onsubmit="return handleFormSubmit(event)">
+<input type="text" id="pProjectName" name="اسم المشروع" placeholder="اكتب اسم المشروع (مثال: منصة الجودة، نظام الفوترة)" required>
+<select id="pDeptName" name="الإدارة" required>
+<option value="" disabled selected>اختر الإدارة / القسم المالي للمشروع</option>
+<option value="الإدارة الطبية">الإدارة الطبية</option>
+<option value="الخدمات التمريضية">الخدمات التمريضية</option>
+<option value="الموارد البشرية">الموارد البشرية</option>
+<option value="إدارة دورة الإيرادات">إدارة دورة الإيرادات</option>
+<option value="الأمن والسلامة">الأمن والسلامة</option>
+<option value="الخدمات الطبية المساعدة">الخدمات الطبية المساعدة</option>
+<option value="العيادات الخارجية">العيادات الخارجية</option>
+</select>
+<select id="pMonth" name="الشهر">
+<option value="يناير">يناير</option>
+<option value="فبراير">فبراير</option>
+<option value="مارس">مارس</option>
+</select>
+<input type="number" id="pTarget" name="النسبة المستهدفة" placeholder="النسبة المستهدفة (%)" min="0" max="100" required>
+<input type="number" id="pActual" name="النسبة الفعلية" placeholder="النسبة الفعلية المحققة (%)" min="0" max="100" required>
+<input type="text" id="pReason" name="الملاحظات" placeholder="أسباب التغير أو ملاحظات الأداء">
+<button type="submit">إضافة وتحديث اللوحة وحفظ البيانات سحابياً</button>
+</form>
+</div>
+
+<div class="panel">
+<h3>📊 توزيع المشاريع حسب الأقسام (محدث تلقائياً وبدون تكرار)</h3>
+<canvas id="departmentsChart" style="max-height: 280px;"></canvas>
+</div>
+</div>
+
+<div class="main-grid">
+<div class="panel" style="grid-column: span 2;">
+<h3>📉 متوسط نسب الإنجاز العام في الربع الأول</h3>
+<canvas id="timelineChart" style="max-height: 250px;"></canvas>
+</div>
+</div>
+
+<div class="panel" style="padding: 0; overflow-x: auto;">
+<table>
+<thead>
+<tr>
+<th>اسم المشروع</th>
+<th>الإدارة / القسم</th>
+<th>الشهر</th>
+<th>المستهدف</th>
+<th>الفعلي</th>
+<th>الانحراف</th>
+<th>الحالة</th>
+<th>الملاحظات</th>
+<th>إجراء</th>
+</tr>
+</thead>
+<tbody id="tableBody"></tbody>
+</table>
+</div>
+</div>
+
+<script>
+const initialDepartments = ["الإدارة الطبية", "الخدمات التمريضية", "الموارد البشرية", "إدارة دورة الإيرادات", "الأمن والسلامة", "الخدمات الطبية المساعدة", "العيادات الخارجية"];
+let trackingRecords = JSON.parse(localStorage.getItem('myTrackingRecords')) || [];
+let timelineChart, departmentsChart;
+
+window.onload = function() {
+    initCharts();
+    updateDashboard();
+};
+
+function initCharts() {
+    const ctxDep = document.getElementById('departmentsChart').getContext('2d');
+    departmentsChart = new Chart(ctxDep, {
+        type: 'bar',
+        data: {
+            labels: initialDepartments,
+            datasets: [{
+                data: new Array(initialDepartments.length).fill(0), 
+                backgroundColor: ['#00b4d8', '#ff4d6d', '#ffb703', '#9d4edd', '#52b788', '#f77f00', '#2196f3'],
+                borderRadius: 6
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+
+    const ctxTime = document.getElementById('timelineChart').getContext('2d');
+    timelineChart = new Chart(ctxTime, {
+        type: 'line',
+        data: {
+            labels: ['يناير', 'فبراير', 'مارس'],
+            datasets: [
+                { label: 'متوسط المستهدف العام (%)', data: [0, 0, 0], borderColor: '#94a3b8', fill: false },
+                { label: 'متوسط الإنجاز الفعلي (%)', data: [0, 0, 0], borderColor: '#2563eb', fill: false }
+            ]
+        },
+        options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
+    });
+}
+
+function updateDashboard() {
+    localStorage.setItem('myTrackingRecords', JSON.stringify(trackingRecords));
+
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
+    let advanced = 0, delayed = 0;
+
+    let monthlyData = {"يناير": { targetSum: 0, actualSum: 0, count: 0 },"فبراير": { targetSum: 0, actualSum: 0, count: 0 },"مارس": { targetSum: 0, actualSum: 0, count: 0 }};
+    let deptCounts = {};
+    initialDepartments.forEach(d => deptCounts[d] = 0);
+
+    let uniqueProjectsInDept = new Set();
+
+    trackingRecords.forEach((rec, index) => {
+        const variance = rec.actual - rec.target;
+        let statusText = "", badgeClass = "", varColor = "";
+
+        if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; varColor = "#16a34a"; advanced++; } 
+        else if (variance < 0) { statusText = "تأخر ⚠️"; badgeClass = "delayed"; varColor = "#dc2626"; delayed++; } 
+        else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; varColor = "#4b5563"; }
+
+        tbody.innerHTML += `
+        <tr>
+        <td><strong>${rec.projectName}</strong></td>
+        <td><span style="color:#2563eb; font-weight:600;">${rec.deptName}</span></td>
+        <td><span style="font-weight:600; color:#475569;">${rec.month}</span></td>
+        <td>${rec.target}%</td>
+        <td>${rec.actual}%</td>
+        <td style="color: ${varColor}; font-weight: bold;">${variance > 0 ? '+' : ''}${variance}%</td>
+        <td><span class="badge ${badgeClass}">${statusText}</span></td>
+        <td>${rec.reason}</td>
+        <td><button class="delete-btn" onclick="deleteRecord(${index})">حذف</button></td>
+        </tr>
+        `;
+
+        if (monthlyData[rec.month]) {
+            monthlyData[rec.month].targetSum += parseInt(rec.target);
+            monthlyData[rec.month].actualSum += parseInt(rec.actual);
+            monthlyData[rec.month].count++;
+        }
+
+        const projectKey = `${rec.deptName.trim()}_${rec.projectName.trim()}`;
+        if (!uniqueProjectsInDept.has(projectKey)) {
+            uniqueProjectsInDept.add(projectKey);
+            if (deptCounts[rec.deptName] !== undefined) { 
+                deptCounts[rec.deptName]++; 
+            }
+        }
+    });
+
+    document.getElementById('totalRecords').innerText = trackingRecords.length;
+    document.getElementById('advancedCount').innerText = advanced;
+    document.getElementById('delayedCount').innerText = delayed; // تم إصلاح الخطأ البرمجي هنا
+
+    let targetsForChart = [], actualsForChart = [];
+    ['يناير', 'فبراير', 'مارس'].forEach(m => {
+        if (monthlyData[m].count > 0) {
+            targetsForChart.push(Math.round(monthlyData[m].targetSum / monthlyData[m].count));
+            actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count));
+        } else { targetsForChart.push(null); actualsForChart.push(null); }
+    });
+    timelineChart.data.datasets[0].data = targetsForChart;
+    timelineChart.data.datasets[1].data = actualsForChart;
+    timelineChart.update();
+
+    departmentsChart.data.datasets[0].data = Object.values(deptCounts);
+    departmentsChart.update();
+}
+
+function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const projectName = document.getElementById('pProjectName').value.trim();
+    const deptName = document.getElementById('pDeptName').value;
+    const month = document.getElementById('pMonth').value;
+    const target = parseInt(document.getElementById('pTarget').value);
+    const actual = parseInt(document.getElementById('pActual').value);
+    const reason = document.getElementById('pReason').value || "لا توجد ملاحظات.";
+
+    // 1. تحديث البيانات محلياً في اللوحة فوراً لتظهر أمام الموظف
+    trackingRecords.push({ projectName, deptName, month, target, actual, reason });
+    updateDashboard();
+
+    // 2. إرسال البيانات سحابياً لقاعدة البيانات المربوطة بإيميل المدير
+    const form = event.target;
+    fetch(form.action, {
+        method: form.method,
+        body: new FormData(form),
+        headers: { 'Accept': 'application/json' }
+    }).then(response => {
+        if (response.ok) {
+            alert("🟢 تم حفظ البيانات سحابياً وتحديث لوحة المدير بنجاح!");
+            form.reset();
+        } else {
+            alert("⚠️ تم تحديث اللوحة محلياً، ولكن حدث خطأ أثناء الحفظ السحابي.");
+        }
+    }).catch(error => {
+        alert("⚠️ عذراً، تأكد من الاتصال بالإنترنت لحفظ البيانات سحابياً.");
+    });
+
+    return false;
+}
+
+function deleteRecord(index) {
+    if (confirm("هل تريد حذف هذا السجل محلياً؟")) {
+        trackingRecords.splice(index, 1);
+        updateDashboard();
+    }
+}
+</script>
+</body>
+</html>
