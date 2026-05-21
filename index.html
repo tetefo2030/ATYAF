@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>لوحة تتبع المشاريع - إدارة التخطيط والتحول</title>
+<!-- استدعاء Chart.js ومكتبة الملصقات التابعة لها -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+
 <style>
 body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f1f5f9; margin: 0; padding: 20px; color: #1e293b; }
 .container { max-width: 1300px; margin: 0 auto; }
@@ -31,6 +34,11 @@ th { background-color: #0f172a; color: white; }
 .badge.ontrack { background: #fef9c3; color: #a16207; }
 .delete-btn { background: #ef4444; color: white; padding: 4px 8px; font-size: 12px; border-radius: 4px; border: none; cursor: pointer;}
 .delete-btn:hover { background: #dc2626; }
+
+/* تنسيق إضافي لبار التصفية الذكي (السلايسر) */
+.slicer-box { display: flex; align-items: center; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-right: 5px solid #2563eb; }
+.slicer-box label { font-weight: bold; color: #1e293b; }
+.slicer-box select { min-width: 250px; background-color: #f8fafc; cursor: pointer; }
 </style>
 </head>
 <body>
@@ -38,8 +46,14 @@ th { background-color: #0f172a; color: white; }
 <div class="container">
 <h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
 
-<div class="info-box">
-📢 عند إدخال الموظف للبيانات، يتم حفظها سحابياً فوراً وتحديث اللوحة عند جميع من يفتح الرابط تلقائياً وبشكل فوري.
+
+
+<!-- سلايسر تصفية المشاريع (تحديث ديناميكي) -->
+<div class="slicer-box">
+<label for="projectSlicer">🔍 سلايسر المشاريع (اختر مشروعاً لمعاينة تقدمه):</label>
+<select id="projectSlicer" onchange="window.filterDashboardByProject()">
+<option value="ALL">كل المشاريع (المتوسط العام)</option>
+</select>
 </div>
 
 <div class="kpi-container">
@@ -85,15 +99,15 @@ th { background-color: #0f172a; color: white; }
 </div>
 
 <div class="panel">
-<h3>📊 توزيع المشاريع حسب الأقسام (محدث تلقائياً وبدون تكرار)</h3>
+<h3>📊 توزيع المشاريع حسب الأقسام </h3>
 <canvas id="departmentsChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
 <div class="main-grid">
 <div class="panel" style="grid-column: span 2;">
-<h3>📉 متوسط نسب الإنجاز العام في الربع الأول</h3>
-<canvas id="timelineChart" style="max-height: 250px;"></canvas>
+<h3 id="chartTitle">📉 متوسط نسب الإنجاز العام في الربع الأول</h3>
+<canvas id="timelineChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
@@ -121,7 +135,6 @@ th { background-color: #0f172a; color: white; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// إعدادات Firebase الخاصة بنطاق وسيرفر مشروعكِ ATYAF بالكامل لمنع مشاكل الحظر
 const firebaseConfig = {
 apiKey: "AIzaSyBw-UX_Q3mS6qWpC9t2Y4n8k1X5vM0Z7aE",
 authDomain: "atyaf-9e35f.firebaseapp.com",
@@ -135,9 +148,11 @@ const database = getDatabase(app);
 
 const initialDepartments = ["الإدارة الطبية", "الخدمات التمريضية", "الموارد البشرية", "إدارة دورة الإيرادات", "الأمن والسلامة", "الخدمات الطبية المساعدة", "العيادات الخارجية"];
 let timelineChart, departmentsChart;
+let allGlobalRecords = []; // حفظ نسخة محلية لعملية الفلترة الفورية
 
-// تهيئة الرسوم والربط السحابي التلقائي عند التحميل
 window.addEventListener('DOMContentLoaded', () => {
+// تسجيل موديل ملصقات البيانات عالمياً في Chart.js
+Chart.register(ChartDataLabels);
 initCharts();
 listenToFirebaseUpdates();
 });
@@ -154,7 +169,13 @@ backgroundColor: ['#00b4d8', '#ff4d6d', '#ffb703', '#9d4edd', '#52b788', '#f77f0
 borderRadius: 6
 }]
 },
-options: { responsive: true, plugins: { legend: { display: false } } }
+options: {
+responsive: true,
+plugins: {
+legend: { display: false },
+datalabels: { display: false } // إخفاء الملصقات في رسمة الأعمدة لعدم الازدحام
+}
+}
 });
 
 const ctxTime = document.getElementById('timelineChart').getContext('2d');
@@ -163,31 +184,94 @@ type: 'line',
 data: {
 labels: ['يناير', 'فبراير', 'مارس'],
 datasets: [
-{ label: 'متوسط المستهدف العام (%)', data: [0, 0, 0], borderColor: '#94a3b8', fill: false },
-{ label: 'متوسط الإنجاز الفعلي (%)', data: [0, 0, 0], borderColor: '#2563eb', fill: false }
+{ label: 'المستهدف (%)', data: [0, 0, 0], borderColor: '#94a3b8', borderDash: [5, 5], fill: false, tension: 0.1 },
+{ label: 'الفعلي المحقق (%)', data: [0, 0, 0], borderColor: '#2563eb', backgroundColor: '#2563eb', fill: false, tension: 0.1 }
 ]
 },
-options: { responsive: true, scales: { y: { min: 0, max: 100 } } }
+options: {
+responsive: true,
+scales: { y: { min: 0, max: 110 } },
+plugins: {
+// إعدادات مظهر ومكان ظهور النسب المئوية على الخطوط
+datalabels: {
+display: true,
+align: 'top',
+backgroundColor: function(context) { return context.dataset.borderColor; },
+borderRadius: 4,
+color: 'white',
+font: { weight: 'bold', size: 11 },
+formatter: function(value) { return value !== null ? value + '%' : ''; },
+padding: 4
+}
+}
+}
 });
 }
 
-// دالة الاستماع ومراقبة السحاب الفورية للتحديث الفوري للجميع
 function listenToFirebaseUpdates() {
 const recordsRef = ref(database, 'trackingRecords');
 onValue(recordsRef, (snapshot) => {
 const data = snapshot.val();
-let recordsArray = [];
+allGlobalRecords = [];
 
 if (data) {
 Object.keys(data).forEach(key => {
-recordsArray.push({ firebaseId: key, ...data[key] });
+allGlobalRecords.push({ firebaseId: key, ...data[key] });
 });
 }
-updateDashboard(recordsArray);
+// تحديث قائمة السلايسر بالمشاريع المتاحة
+updateSlicerOptions(allGlobalRecords);
+// تحديث لوحة البيانات بناءً على الفلتر الحالي
+window.filterDashboardByProject();
 });
 }
 
-function updateDashboard(records) {
+// دالة تحديث خيارات السلايسر بشكل ديناميكي دون تكرار
+function updateSlicerOptions(records) {
+const slicer = document.getElementById('projectSlicer');
+const currentSelection = slicer.value;
+
+// استخراج أسماء المشاريع الفريدة
+let projectNames = new Set();
+records.forEach(r => { if(r.projectName) projectNames.add(r.projectName.trim()); });
+
+// إعادة البناء مع الحفاظ على الخيار الافتراضي
+slicer.innerHTML = '<option value="ALL">كل المشاريع (المتوسط العام)</option>';
+projectNames.forEach(name => {
+const opt = document.createElement('option');
+opt.value = name;
+opt.innerText = name;
+slicer.appendChild(opt);
+});
+
+// إرجاع التحديد السابق إذا كان لا يزال موجوداً
+if([...projectNames].includes(currentSelection)) {
+slicer.value = currentSelection;
+}
+}
+
+// دالة الفلترة التي يتم استدعاؤها عند تغيير السلايسر
+window.filterDashboardByProject = function() {
+const selectedProject = document.getElementById('projectSlicer').value;
+let filteredRecords = [];
+
+if (selectedProject === "ALL") {
+filteredRecords = allGlobalRecords;
+document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز العام في الربع الأول";
+timelineChart.data.datasets[0].label = "متوسط المستهدف العام (%)";
+timelineChart.data.datasets[1].label = "متوسط الإنجاز الفعلي (%)";
+} else {
+filteredRecords = allGlobalRecords.filter(r => r.projectName && r.projectName.trim() === selectedProject);
+document.getElementById('chartTitle').innerText = `📉 مسار تقدم مشروع: ${selectedProject}`;
+timelineChart.data.datasets[0].label = "المستهدف للمشروع (%)";
+timelineChart.data.datasets[1].label = "الفعلي للمشروع (%)";
+}
+
+renderDashboardData(filteredRecords);
+}
+
+// دالة المعالجة والرسم الأساسية بعد الفلترة
+function renderDashboardData(records) {
 const tbody = document.getElementById('tableBody');
 tbody.innerHTML = "";
 let advanced = 0, delayed = 0;
@@ -219,7 +303,6 @@ tr.innerHTML = `
 <td></td>
 `;
 
-// بناء زر الحذف السحابي المباشر
 const deleteBtn = document.createElement('button');
 deleteBtn.className = 'delete-btn';
 deleteBtn.innerText = 'حذف';
@@ -242,10 +325,12 @@ deptCounts[rec.deptName]++;
 }
 });
 
+// تعبئة الكروت العلوية بناءً على البيانات المعروضة حالياً
 document.getElementById('totalRecords').innerText = records.length;
 document.getElementById('advancedCount').innerText = advanced;
 document.getElementById('delayedCount').innerText = delayed;
 
+// تحديث خط الزمن (تأمين الحسابات لتجنب الـ NaN)
 let targetsForChart = [], actualsForChart = [];
 ['يناير', 'فبراير', 'مارس'].forEach(m => {
 if (monthlyData[m].count > 0) {
@@ -253,6 +338,7 @@ targetsForChart.push(Math.round(monthlyData[m].targetSum / monthlyData[m].count)
 actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count));
 } else { targetsForChart.push(null); actualsForChart.push(null); }
 });
+
 timelineChart.data.datasets[0].data = targetsForChart;
 timelineChart.data.datasets[1].data = actualsForChart;
 timelineChart.update();
@@ -261,7 +347,6 @@ departmentsChart.data.datasets[0].data = Object.values(deptCounts);
 departmentsChart.update();
 }
 
-// تصدير دالة الإرسال لتصبح متاحة على مستوى الصفحة والنموذج
 window.handleFormSubmit = function(event) {
 event.preventDefault();
 
@@ -287,7 +372,6 @@ alert("⚠️ فشل الحفظ السحابي: " + error.message);
 return false;
 }
 
-// دالة الحذف السحابي المباشر عند الجميع
 function deleteRecord(firebaseId) {
 if (confirm("هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً من السحاب؟")) {
 const itemRef = ref(database, 'trackingRecords/' + firebaseId);
