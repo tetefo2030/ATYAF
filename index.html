@@ -53,9 +53,7 @@ th { background-color: #0f172a; color: white; }
 <div class="container">
 <h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
 
-<div class="info-box">
-📢 عند إدخل الموظف للبيانات، يتم حفظها سحابياً فوراً وتحديث اللوحة تلقائياً وبشكل فوري عند الجميع.
-</div>
+
 
 <div class="kpi-container">
 <div class="kpi-card">
@@ -92,28 +90,27 @@ th { background-color: #0f172a; color: white; }
 <option value="فبراير">فبراير</option>
 <option value="مارس">مارس</option>
 </select>
-<input type="number" id="pTarget" placeholder="النسبة المستهدفة (%)" min="0" max="100" required>
-<input type="number" id="pActual" placeholder="النسبة الفعلية المحققة (%)" min="0" max="100" required>
+<input type="number" id="pActual" placeholder="النسبة  المحققة (%)" min="0" max="100" required>
 <input type="text" id="pReason" placeholder="أسباب التغير أو ملاحظات الأداء">
-<button type="submit">إضافة وتحديث اللوحة وحفظ البيانات سحابياً</button>
+<button type="submit">إضافة وتحديث اللوحة وحفظ البيانات </button>
 </form>
 </div>
 
 <div class="panel">
-<h3>📊 توزيع المشاريع حسب الأقسام (محدث تلقائياً)</h3>
+<h3>📊 توزيع المشاريع حسب الأقسام </h3>
 <canvas id="departmentsChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
 <div class="main-grid">
 <div class="panel" style="grid-column: span 2;">
-<h3 id="chartTitle">📉 متوسط نسب الإنجاز العام في الربع الأول</h3>
+<h3 id="chartTitle">📉 متوسط نسب الإنجاز لعام 2026 الربع الأول</h3>
 <canvas id="timelineChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
 <div class="slicer-box">
-<label for="projectSlicer">🔍 سلايسر المشاريع (اختر مشروعاً لمعاينة تقدمه وتحديث الجدول أدناه):</label>
+<label for="projectSlicer">🔍 سلايسر المشاريع (اختر مشروعاً لمعاينة تقدمه ):</label>
 <select id="projectSlicer">
 <option value="ALL">كل المشاريع (المتوسط العام)</option>
 </select>
@@ -191,7 +188,6 @@ plugins: [ChartDataLabels],
 data: {
 labels: ['يناير', 'فبراير', 'مارس'],
 datasets: [
-{ label: 'المستهدف (%)', data: [0, 0, 0], borderColor: '#64748b', borderDash: [5, 5], fill: false, tension: 0.1 },
 { label: 'الفعلي المحقق (%)', data: [0, 0, 0], borderColor: '#2563eb', backgroundColor: '#2563eb', fill: false, tension: 0.1 }
 ]
 },
@@ -258,13 +254,11 @@ let filteredRecords = [];
 
 if (selectedProject === "ALL") {
 filteredRecords = allGlobalRecords;
-document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز العام في الربع الأول";
-timelineChart.data.datasets[0].label = "متوسط المستهدف العام (%)";
+document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز لعام2026 الربع الأول";
 timelineChart.data.datasets[1].label = "متوسط الإنجاز الفعلي (%)";
 } else {
 filteredRecords = allGlobalRecords.filter(r => r.projectName && r.projectName.trim() === selectedProject);
 document.getElementById('chartTitle').innerText = `📉 مسار تقدم مشروع: ${selectedProject}`;
-timelineChart.data.datasets[0].label = "المستهدف للمشروع (%)";
 timelineChart.data.datasets[1].label = "الفعلي للمشروع (%)";
 }
 
@@ -298,7 +292,7 @@ const variance = rec.actual - rec.target;
 let statusText = "", badgeClass = "";
 
 if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; advanced++; }
-else if (variance < 0) { statusText = "تأخر ⚠️"; badgeClass = "delayed"; delayed++; }
+else if (variance < 0) { statusText = "متاخر ⚠️"; badgeClass = "delayed"; delayed++; }
 else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; }
 
 // حساب مؤشر التقدم من شهر لشهر للمشروع نفسه
