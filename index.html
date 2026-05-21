@@ -13,8 +13,8 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 h1 { text-align: center; color: #0f172a; margin-bottom: 25px; font-size: 24px; }
 .kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; margin-bottom: 25px; }
 .kpi-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-top: 5px solid #64748b; }
-.kpi-card.advanced { border-top-color: #10b981; }
-.kpi-card.delayed { border-top-color: #ef4444; }
+.kpi-card.completed-card { border-top-color: #2563eb; } /* تعديل لون بطاقة مكتمل إلى الأزرق */
+.kpi-card.delayed-card { border-top-color: #ef4444; } /* تعديل لون بطاقة متأخر إلى الأحمر */
 .kpi-value { font-size: 28px; font-weight: bold; margin-top: 5px; }
 .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 25px; }
 @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
@@ -28,10 +28,13 @@ button:hover { background-color: #1d4ed8; }
 table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); }
 th, td { padding: 14px; text-align: right; border-bottom: 1px solid #f1f5f9; }
 th { background-color: #0f172a; color: white; }
-.badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
-.badge.advanced { background: #dcfce7; color: #15803d; }
-.badge.delayed { background: #fee2e2; color: #b91c1c; }
-.badge.ontrack { background: #fef9c3; color: #a16207; }
+
+/* 🎨 تحديث شارات الألوان الجديدة بحسب طلبك */
+.badge { padding: 6px 10px; border-radius: 6px; font-size: 12px; font-weight: bold; display: inline-block; }
+.badge.status-ontrack { background: #dcfce7; color: #15803d; }     /* كما هو مخطط -> أخضر */
+.badge.status-completed { background: #dbeafe; color: #1e40af; }   /* مكتمل -> أزرق */
+.badge.status-delayed { background: #fee2e2; color: #b91c1c; }     /* متأخر -> أحمر */
+.badge.status-stopped { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; } /* إيقاف المشروع -> رصاصي */
 
 .slicer-box { display: flex; align-items: center; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-top: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-right: 5px solid #2563eb; }
 .slicer-box label { font-weight: bold; color: #1e293b; }
@@ -51,16 +54,18 @@ th { background-color: #0f172a; color: white; }
 <div class="container">
 <h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
 
+<div class="info-box">ℹ️ عند إدخال البيانات، يتم حفظها سحابياً فوراً وتحديث اللوحة تلقائياً وبشكل فوري عند الجميع.</div>
+
 <div class="kpi-container">
 <div class="kpi-card">
 <div>إجمالي السجلات المضافة</div>
 <div class="kpi-value" id="totalRecords">0</div>
 </div>
-<div class="kpi-card advanced">
-<div style="color: #15803d;">مشاريع متقدمة</div>
-<div class="kpi-value" id="advancedCount" style="color: #15803d;">0</div>
+<div class="kpi-card completed-card">
+<div style="color: #1e40af;">مشاريع مكتملة</div>
+<div class="kpi-value" id="advancedCount" style="color: #1e40af;">0</div>
 </div>
-<div class="kpi-card delayed">
+<div class="kpi-card delayed-card">
 <div style="color: #b91c1c;">مشاريع متأخرة</div>
 <div class="kpi-value" id="delayedCount" style="color: #b91c1c;">0</div>
 </div>
@@ -86,27 +91,36 @@ th { background-color: #0f172a; color: white; }
 <option value="فبراير">فبراير</option>
 <option value="مارس">مارس</option>
 </select>
-<input type="number" id="pActual" placeholder="النسبة  المحققة (%)" min="0" max="100" required>
+<input type="number" id="pActual" placeholder="النسبة الفعلية المحققة (%)" min="0" max="100" required>
+
+<select id="pStatus" required>
+<option value="" disabled selected>اختر الحالة العامة للمشروع</option>
+<option value="كما هو مخطط">كما هو مخطط 🟢</option>
+<option value="مكتمل">مكتمل 🔵</option>
+<option value="متأخر">متأخر 🔴</option>
+<option value="إيقاف المشروع">إيقاف المشروع 🔘</option>
+</select>
+
 <input type="text" id="pReason" placeholder="أسباب التغير أو ملاحظات الأداء">
-<button type="submit">إضافة وتحديث اللوحة وحفظ البيانات </button>
+<button type="submit">إضافة وتحديث اللوحة وحفظ البيانات سحابياً</button>
 </form>
 </div>
 
 <div class="panel">
-<h3>📊 توزيع المشاريع حسب الأقسام </h3>
+<h3>📊 توزيع المشاريع حسب الأقسام (محدث تلقائياً)</h3>
 <canvas id="departmentsChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
 <div class="main-grid">
 <div class="panel" style="grid-column: span 2;">
-<h3 id="chartTitle">📉 متوسط نسب الإنجاز لعام 2026 الربع الأول</h3>
-<canvas id="timelineChart" style="max-height: 280px;"></canvas>
+<h3 id="chartTitle">📉 متوسط نسب الإنجاز العام في الربع الأول</h3>
+<canvas id="mainTimelineChart" style="max-height: 280px;"></canvas>
 </div>
 </div>
 
 <div class="slicer-box">
-<label for="projectSlicer">🔍 سلايسر المشاريع (اختر مشروعاً لمعاينة تقدمه ):</label>
+<label for="projectSlicer">🔍 سلايسر المشاريع (اختر مشروعاً لمعاينة تقدمه وتحديث الجدول أدناه):</label>
 <select id="projectSlicer">
 <option value="ALL">كل المشاريع (المتوسط العام)</option>
 </select>
@@ -147,7 +161,7 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 const initialDepartments = ["الإدارة الطبية", "الخدمات التمريضية", "الموارد البشرية", "إدارة دورة الإيرادات", "الأمن والسلامة", "الخدمات الطبية المساعدة", "العيادات الخارجية"];
-let timelineChart, departmentsChart;
+let timelineChartInstance, departmentsChart;
 let allGlobalRecords = [];
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -177,8 +191,8 @@ datalabels: { display: false }
 }
 });
 
-const ctxTime = document.getElementById('timelineChart').getContext('2d');
-timelineChart = new Chart(ctxTime, {
+const ctxTime = document.getElementById('mainTimelineChart').getContext('2d');
+timelineChartInstance = new Chart(ctxTime, {
 type: 'line',
 plugins: [ChartDataLabels],
 data: {
@@ -194,11 +208,9 @@ plugins: {
 datalabels: {
 display: true,
 align: 'top',
-offset: 8,
+offset: 10,
 backgroundColor: 'transparent',
-color: function(context) {
-return context.dataset.borderColor === '#2563eb' ? '#2563eb' : '#475569';
-},
+color: '#2563eb',
 font: { weight: 'bold', size: 14, family: 'Segoe UI' },
 formatter: function(value) { return value !== null ? value + '%' : ''; }
 }
@@ -249,15 +261,15 @@ let filteredRecords = [];
 
 if (selectedProject === "ALL") {
 filteredRecords = allGlobalRecords;
-document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز لعام 2026 الربع الأول";
-if (timelineChart && timelineChart.data.datasets[0]) {
-timelineChart.data.datasets[0].label = "متوسط الإنجاز الفعلي (%)";
+document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز العام في الربع الأول";
+if (timelineChartInstance.data.datasets[0]) {
+timelineChartInstance.data.datasets[0].label = "متوسط الإنجاز الفعلي (%)";
 }
 } else {
 filteredRecords = allGlobalRecords.filter(r => r.projectName && r.projectName.trim() === selectedProject);
 document.getElementById('chartTitle').innerText = `📉 مسار تقدم مشروع: ${selectedProject}`;
-if (timelineChart && timelineChart.data.datasets[0]) {
-timelineChart.data.datasets[0].label = "الفعلي للمشروع (%)";
+if (timelineChartInstance.data.datasets[0]) {
+timelineChartInstance.data.datasets[0].label = "الفعلي للمشروع (%)";
 }
 }
 
@@ -274,9 +286,9 @@ return 0;
 function renderDashboardData(records) {
 const tbody = document.getElementById('tableBody');
 tbody.innerHTML = "";
-let advanced = 0, delayed = 0;
+let completedCount = 0, delayedCount = 0;
 
-let monthlyData = {"يناير": { targetSum: 0, actualSum: 0, count: 0 },"فبراير": { targetSum: 0, actualSum: 0, count: 0 },"مارس": { targetSum: 0, actualSum: 0, count: 0 }};
+let monthlyData = {"يناير": { actualSum: 0, count: 0 },"فبراير": { actualSum: 0, count: 0 },"مارس": { actualSum: 0, count: 0 }};
 let deptCounts = {};
 initialDepartments.forEach(d => deptCounts[d] = 0);
 
@@ -284,15 +296,22 @@ let uniqueProjectsInDept = new Set();
 
 records.sort((a, b) => getMonthWeight(a.month) - getMonthWeight(b.month));
 
-records.forEach((rec, index) => {
-// التحقق من وجود target لتفادي مشاكل الحساب
-const currentTarget = rec.target !== undefined ? rec.target : 100;
-const variance = rec.actual - currentTarget;
-let statusText = "", badgeClass = "";
+records.forEach((rec) => {
+let badgeClass = "";
+let currentStatus = rec.projectStatus || "كما هو مخطط"; 
 
-if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; advanced++; }
-else if (variance < 0) { statusText = "متاخر ⚠️"; badgeClass = "delayed"; delayed++; }
-else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; }
+// 🎨 ربط الحالات بالألوان المحددة وحساب العدادات
+if (currentStatus === "كما هو مخطط") {
+    badgeClass = "status-ontrack";
+} else if (currentStatus === "مكتمل") {
+    badgeClass = "status-completed"; 
+    completedCount++;
+} else if (currentStatus === "متأخر") {
+    badgeClass = "status-delayed"; 
+    delayedCount++;
+} else if (currentStatus === "إيقاف المشروع") {
+    badgeClass = "status-stopped";
+}
 
 let trendHTML = `<span class="trend-indicator trend-stable">➖ مستقر (البداية)</span>`;
 if(rec.projectName) {
@@ -323,7 +342,7 @@ tr.innerHTML = `
 <td><span style="font-weight:600; color:#475569;">${rec.month}</span></td>
 <td><span style="font-weight:bold; color:#0f172a;">${rec.actual}%</span></td>
 <td>${trendHTML}</td>
-<td><span class="badge ${badgeClass}">${statusText}</span></td>
+<td><span class="badge ${badgeClass}">${currentStatus}</span></td>
 <td>${rec.reason}</td>
 <td></td>
 `;
@@ -336,7 +355,6 @@ tr.querySelector('td:last-child').appendChild(deleteBtn);
 tbody.appendChild(tr);
 
 if (monthlyData[rec.month]) {
-monthlyData[rec.month].targetSum += parseInt(currentTarget);
 monthlyData[rec.month].actualSum += parseInt(rec.actual);
 monthlyData[rec.month].count++;
 }
@@ -351,8 +369,8 @@ deptCounts[rec.deptName]++;
 });
 
 document.getElementById('totalRecords').innerText = records.length;
-document.getElementById('advancedCount').innerText = advanced;
-document.getElementById('delayedCount').innerText = delayed;
+document.getElementById('advancedCount').innerText = completedCount;
+document.getElementById('delayedCount').innerText = delayedCount;
 
 let actualsForChart = [];
 ['يناير', 'فبراير', 'مارس'].forEach(m => {
@@ -361,10 +379,10 @@ actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count)
 } else { actualsForChart.push(null); }
 });
 
-if (timelineChart && timelineChart.data.datasets[0]) {
-timelineChart.data.datasets[0].data = actualsForChart;
+if (timelineChartInstance && timelineChartInstance.data.datasets[0]) {
+timelineChartInstance.data.datasets[0].data = actualsForChart;
 }
-timelineChart.update();
+timelineChartInstance.update();
 
 departmentsChart.data.datasets[0].data = Object.values(deptCounts);
 departmentsChart.update();
@@ -377,10 +395,10 @@ const projectName = document.getElementById('pProjectName').value.trim();
 const deptName = document.getElementById('pDeptName').value;
 const month = document.getElementById('pMonth').value;
 const actual = parseInt(document.getElementById('pActual').value);
+const projectStatus = document.getElementById('pStatus').value; 
 const reason = document.getElementById('pReason').value || "لا توجد ملاحظات.";
 
-// هنا وضعنا قيمة افتراضية للـ target تساوي 100 لكونها ملغية من واجهة الإدخال
-const newRecord = { projectName, deptName, month, target: 100, actual, reason, timestamp: new Date().toISOString() };
+const newRecord = { projectName, deptName, month, actual, projectStatus, reason, timestamp: new Date().toISOString() };
 
 const recordsRef = ref(database, 'trackingRecords');
 push(recordsRef, newRecord)
