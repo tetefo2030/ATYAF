@@ -33,12 +33,10 @@ th { background-color: #0f172a; color: white; }
 .badge.delayed { background: #fee2e2; color: #b91c1c; }
 .badge.ontrack { background: #fef9c3; color: #a16207; }
 
-/* نقل تصميم السلايسر ليتناسب مع موقعه الجديد فوق الجدول */
 .slicer-box { display: flex; align-items: center; gap: 15px; background: #fff; padding: 15px; border-radius: 12px; margin-top: 25px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border-right: 5px solid #2563eb; }
 .slicer-box label { font-weight: bold; color: #1e293b; }
 .slicer-box select { min-width: 250px; background-color: #f8fafc; cursor: pointer; }
 
-/* أنماط مؤشر التقدم الشهري الجديد */
 .trend-indicator { font-weight: bold; font-size: 14px; display: inline-flex; align-items: center; gap: 5px; }
 .trend-up { color: #16a34a; }
 .trend-down { color: #dc2626; }
@@ -52,8 +50,6 @@ th { background-color: #0f172a; color: white; }
 
 <div class="container">
 <h1>📊 لوحة بيانات المشاريع الربع الأول - إدارة التخطيط والتحول</h1>
-
-
 
 <div class="kpi-container">
 <div class="kpi-card">
@@ -195,7 +191,6 @@ options: {
 responsive: true,
 scales: { y: { min: 0, max: 110 } },
 plugins: {
-// تعديل الليبل ليكون واضحاً وشفافاً تماماً وبدون مربعات رمادية تشوه المظهر
 datalabels: {
 display: true,
 align: 'top',
@@ -254,18 +249,21 @@ let filteredRecords = [];
 
 if (selectedProject === "ALL") {
 filteredRecords = allGlobalRecords;
-document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز لعام2026 الربع الأول";
-timelineChart.data.datasets[1].label = "متوسط الإنجاز الفعلي (%)";
+document.getElementById('chartTitle').innerText = "📉 متوسط نسب الإنجاز لعام 2026 الربع الأول";
+if (timelineChart && timelineChart.data.datasets[0]) {
+timelineChart.data.datasets[0].label = "متوسط الإنجاز الفعلي (%)";
+}
 } else {
 filteredRecords = allGlobalRecords.filter(r => r.projectName && r.projectName.trim() === selectedProject);
 document.getElementById('chartTitle').innerText = `📉 مسار تقدم مشروع: ${selectedProject}`;
-timelineChart.data.datasets[1].label = "الفعلي للمشروع (%)";
+if (timelineChart && timelineChart.data.datasets[0]) {
+timelineChart.data.datasets[0].label = "الفعلي للمشروع (%)";
+}
 }
 
 renderDashboardData(filteredRecords);
 }
 
-// دالة ذكية لحساب وترتيب الأشهر لمعرفة التقدم الشهري
 function getMonthWeight(m) {
 if(m === "يناير") return 1;
 if(m === "فبراير") return 2;
@@ -284,18 +282,18 @@ initialDepartments.forEach(d => deptCounts[d] = 0);
 
 let uniqueProjectsInDept = new Set();
 
-// فرز السجلات حسب ترتيب الأشهر للحصول على مؤشر تقدم دقيق
 records.sort((a, b) => getMonthWeight(a.month) - getMonthWeight(b.month));
 
 records.forEach((rec, index) => {
-const variance = rec.actual - rec.target;
+// التحقق من وجود target لتفادي مشاكل الحساب
+const currentTarget = rec.target !== undefined ? rec.target : 100;
+const variance = rec.actual - currentTarget;
 let statusText = "", badgeClass = "";
 
 if (variance > 0) { statusText = "مكتمل 👍"; badgeClass = "advanced"; advanced++; }
 else if (variance < 0) { statusText = "متاخر ⚠️"; badgeClass = "delayed"; delayed++; }
 else { statusText = "كما هو مخطط 🎯"; badgeClass = "ontrack"; }
 
-// حساب مؤشر التقدم من شهر لشهر للمشروع نفسه
 let trendHTML = `<span class="trend-indicator trend-stable">➖ مستقر (البداية)</span>`;
 if(rec.projectName) {
 let previousRecord = records.find(r => r.projectName.trim() === rec.projectName.trim() && getMonthWeight(r.month) === (getMonthWeight(rec.month) - 1));
@@ -309,7 +307,6 @@ trendHTML = `<span class="trend-indicator trend-down">📉 تراجع (${diff}%)
 trendHTML = `<span class="trend-indicator trend-stable">➖ مستقر (0%)</span>`;
 }
 } else if(rec.month !== "يناير") {
-// إذا كان له سجل في مارس ولم يدخل في فبراير، نبحث عن يناير
 let januaryRecord = records.find(r => r.projectName.trim() === rec.projectName.trim() && r.month === "يناير");
 if(januaryRecord && rec.month === "مارس") {
 let diff = rec.actual - januaryRecord.actual;
@@ -339,7 +336,7 @@ tr.querySelector('td:last-child').appendChild(deleteBtn);
 tbody.appendChild(tr);
 
 if (monthlyData[rec.month]) {
-monthlyData[rec.month].targetSum += parseInt(rec.target);
+monthlyData[rec.month].targetSum += parseInt(currentTarget);
 monthlyData[rec.month].actualSum += parseInt(rec.actual);
 monthlyData[rec.month].count++;
 }
@@ -357,16 +354,16 @@ document.getElementById('totalRecords').innerText = records.length;
 document.getElementById('advancedCount').innerText = advanced;
 document.getElementById('delayedCount').innerText = delayed;
 
-let targetsForChart = [], actualsForChart = [];
+let actualsForChart = [];
 ['يناير', 'فبراير', 'مارس'].forEach(m => {
 if (monthlyData[m].count > 0) {
-targetsForChart.push(Math.round(monthlyData[m].targetSum / monthlyData[m].count));
 actualsForChart.push(Math.round(monthlyData[m].actualSum / monthlyData[m].count));
-} else { targetsForChart.push(null); actualsForChart.push(null); }
+} else { actualsForChart.push(null); }
 });
 
-timelineChart.data.datasets[0].data = targetsForChart;
-timelineChart.data.datasets[1].data = actualsForChart;
+if (timelineChart && timelineChart.data.datasets[0]) {
+timelineChart.data.datasets[0].data = actualsForChart;
+}
 timelineChart.update();
 
 departmentsChart.data.datasets[0].data = Object.values(deptCounts);
@@ -379,11 +376,11 @@ event.preventDefault();
 const projectName = document.getElementById('pProjectName').value.trim();
 const deptName = document.getElementById('pDeptName').value;
 const month = document.getElementById('pMonth').value;
-const target = parseInt(document.getElementById('pTarget').value);
 const actual = parseInt(document.getElementById('pActual').value);
 const reason = document.getElementById('pReason').value || "لا توجد ملاحظات.";
 
-const newRecord = { projectName, deptName, month, target, actual, reason, timestamp: new Date().toISOString() };
+// هنا وضعنا قيمة افتراضية للـ target تساوي 100 لكونها ملغية من واجهة الإدخال
+const newRecord = { projectName, deptName, month, target: 100, actual, reason, timestamp: new Date().toISOString() };
 
 const recordsRef = ref(database, 'trackingRecords');
 push(recordsRef, newRecord)
@@ -398,7 +395,7 @@ alert("⚠️ فشل الحفظ السحابي: " + error.message);
 return false;
 }
 
-function deleteRecord(firebaseId) {
+window.deleteRecord = function(firebaseId) {
 if (confirm("هل أنت متأكد من رغبتك في حذف هذا السجل نهائياً من السحاب؟")) {
 const itemRef = ref(database, 'trackingRecords/' + firebaseId);
 remove(itemRef)
